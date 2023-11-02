@@ -3,17 +3,26 @@
 import cv2
 import torch
 import numpy as np
+import sys
+import pathlib
+
+# add yolov7 submodule to path
+FILE_ABS_DIR = pathlib.Path(__file__).absolute().parent
+YOLOV7_ROOT = (FILE_ABS_DIR / 'yolov7').as_posix()
+if YOLOV7_ROOT not in sys.path:
+    print("Adding yolov7 to path: %s" % YOLOV7_ROOT)
+    sys.path.append(YOLOV7_ROOT)
 
 from utils.general import check_img_size, non_max_suppression, scale_coords, set_logging
 from utils.plots import plot_one_box
-from utils.torch_utils import select_device, time_synchronized
+from utils.torch_utils import select_device
 from utils.datasets import letterbox
 from models.experimental import attempt_load
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy
-from sensor_msgs.msg import Image, CompressedImage, CameraInfo
+from sensor_msgs.msg import Image
 from vision_msgs.msg import BoundingBox2D, BoundingBox2DArray
 from cv_bridge import CvBridge
 
@@ -137,6 +146,9 @@ class ObjectDetection(Node):
         Preform object detection with YOLOv7
         """
         im0s = [self.left_image.copy(), self.right_image.copy]
+        
+        self.left_RGB = True
+        self.right_RGB = True
 
         img = letterbox(self.left_image, self.img_size, self.stride)[0]
         img = img[:, :, ::-1].transpose(2, 0, 1) # BGR to RGB, to 3x416x416
@@ -165,13 +177,12 @@ class ObjectDetection(Node):
         pred = non_max_suppression(pred, self.conf_thres, self.iou_thres)
         # t3 = time_synchronized()
 
-        # Initialize array of bounding boxes
-        bb_array = BoundingBox2DArray()
-
         # Process detections
         bbox_array = []
         inf_images = []
         for i, det in enumerate(pred):  # detections per image
+            # Initialize array of bounding boxes
+            bb_array = BoundingBox2DArray()
             im0 = im0s[i].copy()
             if len(det):
                 # Rescale boxes from img_size to im0 size
@@ -195,6 +206,8 @@ class ObjectDetection(Node):
             inf_images.append(im0)
             #cv2.imshow("YOLOv7 Object detection result RGB", cv2.cvtColor(cv2.resize(im0, None, fx=1.5, fy=1.5),cv2.COLOR_RGB2BGR)) 
             #cv2.waitKey()  
+
+        # t4 = time_synchronized()
 
         # Publish bounding boxes
         self.bb_left_pub.publish(bbox_array[0])

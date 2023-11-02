@@ -3,6 +3,14 @@
 import cv2
 import torch
 import numpy as np
+import sys
+import pathlib
+
+# add yolov7 submodule to path
+FILE_ABS_DIR = pathlib.Path(__file__).absolute().parent
+YOLOV7_ROOT = (FILE_ABS_DIR / 'yolov7').as_posix()
+if YOLOV7_ROOT not in sys.path:
+    sys.path.append(YOLOV7_ROOT)
 
 from utils.general import check_img_size, non_max_suppression, scale_coords, set_logging
 from utils.plots import plot_one_box
