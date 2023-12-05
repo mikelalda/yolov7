@@ -6,10 +6,10 @@ import numpy as np
 import sys
 import pathlib
 
-from yolo.yolov7.utils.general import check_img_size, non_max_suppression, scale_coords, set_logging
-from yolo.yolov7.utils.plots import plot_one_box
-from yolo.yolov7.utils.torch_utils import select_device, time_synchronized
-from yolo.yolov7.utils.datasets import letterbox
+from utils.general import check_img_size, non_max_suppression, scale_coords, set_logging
+from utils.plots import plot_one_box
+from utils.torch_utils import select_device, time_synchronized
+from utils.datasets import letterbox
 from models.experimental import attempt_load
 
 import rclpy
