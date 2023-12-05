@@ -6,7 +6,7 @@ import numpy as np
 
 from utils.general import check_img_size, non_max_suppression, scale_coords, set_logging, strip_optimizer
 from utils.plots import plot_one_box
-from utils.torch_utils import select_device
+from utils.torch_utils import select_device, time_synchronized
 from utils.datasets import letterbox
 from models.experimental import attempt_load
 
@@ -167,14 +167,14 @@ class ObjectDetection(Node):
 
 
         # Inference
-        # t1 = time_synchronized()
+        t1 = time_synchronized()
         with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
             pred = self.model(img)[0]
-        # t2 = time_synchronized()
+        t2 = time_synchronized()
 
         # Apply NMS
         pred = non_max_suppression(pred, self.conf_thres, self.iou_thres)
-        # t3 = time_synchronized()
+        t3 = time_synchronized()
 
         # Process detections
         all_det_array = []
@@ -215,7 +215,7 @@ class ObjectDetection(Node):
             #cv2.imshow("YOLOv7 Object detection result RGB", cv2.cvtColor(cv2.resize(im0, None, fx=1.5, fy=1.5),cv2.COLOR_RGB2BGR)) 
             #cv2.waitKey()  
 
-        # t4 = time_synchronized()
+        t4 = time_synchronized()
 
         
         # Publish bounding boxes
