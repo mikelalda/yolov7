@@ -73,8 +73,8 @@ class ObjectDetection(Node):
         # Camera info and frames
         self.left_image = None
         self.right_image = None
-        self.camera_left == False
-        self.camera_right == False:
+        self.camera_left = False
+        self.camera_right = False
 
         # Flags
         self.left_RGB = False
