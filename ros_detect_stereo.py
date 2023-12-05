@@ -73,8 +73,6 @@ class ObjectDetection(Node):
         # Camera info and frames
         self.left_image = None
         self.right_image = None
-        self.camera_left = False
-        self.camera_right = False
 
         # Flags
         self.left_RGB = False
@@ -84,7 +82,7 @@ class ObjectDetection(Node):
         self.timer = self.create_timer(1/self.frequency, self.timer_callback)
 
         # Publishers for Classes
-        qos_pub = QoSProfile(depth=1) 
+        qos_pub = QoSProfile(depth=10) 
         qos_pub.reliability = QoSReliabilityPolicy.BEST_EFFORT
         self.infer_left_pub = self.create_publisher(Image, self.inf_left_image_topic, qos_profile=qos_pub)
         self.infer_right_pub = self.create_publisher(Image, self.inf_right_image_topic, qos_profile=qos_pub)
@@ -151,27 +149,22 @@ class ObjectDetection(Node):
         """ 
         Preform object detection with YOLOv7
         """
-        im0s = [self.left_image.copy(), self.right_image.copy]
+        im0s = [self.left_image.copy(), self.right_image.copy()]
         
-        self.left_RGB = True
-        self.right_RGB = True
+        self.left_RGB = False
+        self.right_RGB = False
 
-        img = letterbox(self.left_image, self.img_size, self.stride)[0]
-        img = img[:, :, ::-1].transpose(2, 0, 1) # BGR to RGB, to 3x416x416
-        img = np.ascontiguousarray(img)
+        img_left = letterbox(self.left_image, self.img_size, self.stride)[0]
+        img_left = img_left[:, :, ::-1].transpose(2, 0, 1) # BGR to RGB, to 3x416x416
+        img_right = letterbox(self.right_image, self.img_size, self.stride)[0]
+        img_right = img_right[:, :, ::-1].transpose(2, 0, 1) # BGR to RGB, to 3x416x416
+        img = np.ascontiguousarray([img_left,img_right])
         img = torch.from_numpy(img).to(self.device)
         img = img.half() if self.half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
         if img.ndimension() == 3:
-            img = img.unsqueeze(0)
+            img_left = img.unsqueeze(0)
 
-        # Warmup
-        if self.device.type != 'cpu' and (self.old_img_b != img.shape[0] or self.old_img_h != img.shape[2] or self.old_img_w != img.shape[3]):
-            self.old_img_b = img.shape[0]
-            self.old_img_h = img.shape[2]
-            self.old_img_w = img.shape[3]
-            for i in range(3):
-                self.model(img)[0]
 
         # Inference
         # t1 = time_synchronized()
@@ -224,6 +217,7 @@ class ObjectDetection(Node):
 
         # t4 = time_synchronized()
 
+        
         # Publish bounding boxes
         self.bb_left_pub.publish(all_det_array[0])
         self.bb_right_pub.publish(all_det_array[1])
@@ -236,7 +230,7 @@ class ObjectDetection(Node):
             self.infer_right_pub.publish(out_img)
 
     def timer_callback(self):
-        if self.camera_left == True and self.camera_right == True:
+        if self.left_RGB == True and self.right_RGB == True:
             self.YOLOv7_detect()
 
 def main(args=None):
