@@ -124,7 +124,7 @@ class ObjectDetection(Node):
         self.model = DetectMultiBackend(self.weights, device=self.device, dnn=False, data=self.data, fp16=self.half)
         self.stride, self.names, self.pt = self.model.stride, self.model.names, self.model.pt
         self.imgsz = check_img_size(self.img_size, s=self.stride)  # check img_size
-        print(len(self.names))
+        
         # Get names and colors
         self.colors = [[np.random.randint(0, 255) for _ in range(3)] for _ in self.names]
 
@@ -169,12 +169,10 @@ class ObjectDetection(Node):
         if img.ndimension() == 3:
             img_left = img.unsqueeze(0)
 
-
         # Inference
         with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
             pred = self.model(img)
 
-        print(len(pred))
         # Apply NMS
         pred = non_max_suppression(pred, self.conf_thres, self.iou_thres, classes=None, agnostic=False, max_det=100, nm=32)
 
@@ -182,53 +180,32 @@ class ObjectDetection(Node):
         all_det_array = []
         inf_images = []
         s=''
-        print(len(pred))
-        print(pred[1])
         for i, det in enumerate(pred):  # detections per image
             # Initialize array of bounding boxes
             det_array = DetectionArray()
             im0 = im0s[i].copy()
-            #annotator = Annotator(im0, line_width=self.line_thickness, example=str(self.names))
+            
             if len(det):
-                print(det)
-                # Rescale boxes from img_size to im0 size
-                #masks = process_mask(proto[i], det[:, 6:], det[:, :4], img.shape[2:], upsample=True)  # HWC
-
-                # Print results
-                #for c in det[:, 5].unique():
-                    #n = (det[:, 5] == c).sum()  # detections per class
-                    #s += f"{n} {self.names[int(c)]}{'s' * (n > 1)}, "  # add to string
-
-                # Mask plotting ----------------------------------------------------------------------------------------
-                #mcolors = [colors(int(cls), True) for cls in det[:, 5]]
-                #im_masks = plot_masks(im0[i], masks, mcolors)  # image with masks shape(imh,imw,3)
-                #annotator.im = scale_masks(im0.shape[2:], im_masks, im0.shape)  # scale to original h, w
-                # Mask plotting ----------------------------------------------------------------------------------------
-
-                # Write results
-                for *xyxy, conf, cls in reversed(det):
-                    print(xyxy)
-                    print(conf)
-                    print(cls)
-                    print(self.names[int(cls)])
-                    if conf > self.det_conf_thres: # Limit confidence threshold to 80% for all classes
-                        # Draw a boundary box around each object
-                        label = f'{self.names[int(cls)]} {conf:.2f}'
-                        # Save bounding box to publish later
-                        det = Detection()
-                        det.class_name = label
-                        det.class_id = cls
-                        det.bbox.center.position.x = float(xyxy[0])-float(xyxy[2])
-                        det.bbox.center.position.y = float(xyxy[1])-float(xyxy[3])
-                        det.bbox.center.theta = 0.0
-                        det.bbox.size_x = abs(det.bbox.center.position.x/2)
-                        det.bbox.size_y = abs(det.bbox.center.position.y/2)
-                        if self.is_seg:
-                            # Segmentation
-                            det.mask.size_x = abs(det.bbox.center.position.x/2)
-                            det.mask.size_y = abs(det.bbox.center.position.y/2)
-                            det.mask.data = xyxy[4:]
-                        det_array.boxes.append(det)
+              # Write results
+              for *xyxy, conf, cls in reversed(det):
+                  if conf > self.det_conf_thres: # Limit confidence threshold to 80% for all classes
+                      # Draw a boundary box around each object
+                      label = f'{self.names[int(cls)]} {conf:.2f}'
+                      # Save bounding box to publish later
+                      detection = Detection()
+                      detection.class_name = label
+                      detection.class_id = cls
+                      detection.bbox.center.position.x = float(xyxy[0])-float(xyxy[2])
+                      detection.bbox.center.position.y = float(xyxy[1])-float(xyxy[3])
+                      detection.bbox.center.theta = 0.0
+                      detection.bbox.size_x = abs(detection.bbox.center.position.x/2)
+                      detection.bbox.size_y = abs(detection.bbox.center.position.y/2)
+                      if self.is_seg:
+                          # Segmentation
+                          detection.mask.size_x = abs(detection.bbox.center.position.x/2)
+                          detection.mask.size_y = abs(detection.bbox.center.position.y/2)
+                          detection.mask.data = xyxy[4:]
+                      det_array.boxes.append(detection)
 
             det_array.header.stamp = self.get_clock().now().to_msg()
             all_det_array.append(det_array)
@@ -242,7 +219,7 @@ class ObjectDetection(Node):
         self.bb_right_pub.publish(all_det_array[1])
         
         # Publish output ROS 2 image
-        if self.inf_image:
+        if self.inf_image: #TODO: Add option to publish both images
             out_img = self.bridge.cv2_to_imgmsg(cv2.cvtColor(cv2.resize(inf_images[0], None, fx=1.5, fy=1.5),cv2.COLOR_RGB2BGR))
             self.infer_left_pub.publish(out_img)
             out_img = self.bridge.cv2_to_imgmsg(cv2.cvtColor(cv2.resize(inf_images[1], None, fx=1.5, fy=1.5),cv2.COLOR_RGB2BGR))

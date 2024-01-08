@@ -70,6 +70,7 @@ from utils.dataloaders import LoadImages
 from utils.general import (LOGGER, Profile, check_dataset, check_img_size, check_requirements, check_version,
                            check_yaml, colorstr, file_size, get_default_args, print_args, url2file)
 from utils.torch_utils import select_device, smart_inference_mode
+from models.common import DetectMultiBackend
 
 
 def export_formats():
@@ -438,7 +439,7 @@ def run(
         data=ROOT / 'data/coco128.yaml',  # 'dataset.yaml path'
         weights=ROOT / 'yolov5s.pt',  # weights path
         imgsz=(640, 640),  # image (height, width)
-        batch_size=1,  # batch size
+        batch_size=2,  # batch size
         device='cpu',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         include=('torchscript', 'onnx'),  # include formats
         half=False,  # FP16 half-precision export
@@ -472,7 +473,8 @@ def run(
     if half:
         assert device.type != 'cpu' or coreml, '--half only compatible with GPU export, i.e. use --device 0'
         assert not dynamic, '--half not compatible with --dynamic, i.e. use either --half or --dynamic but not both'
-    model = attempt_load(weights, device=device, inplace=True, fuse=True)  # load FP32 model
+    
+    model = DetectMultiBackend(weights, device=device, dnn=False, data=data, fp16=half)
 
     # Checks
     imgsz *= 2 if len(imgsz) == 1 else 1  # expand
@@ -480,7 +482,7 @@ def run(
         assert device.type == 'cpu', '--optimize not compatible with cuda devices, i.e. use --device cpu'
 
     # Input
-    gs = int(max(model.stride))  # grid size (max stride)
+    gs = int(model.stride)  # grid size (max stride)
     imgsz = [check_img_size(x, gs) for x in imgsz]  # verify img_size are gs-multiples
     im = torch.zeros(batch_size, 3, *imgsz).to(device)  # image size(1,3,320,192) BCHW iDetection
 
